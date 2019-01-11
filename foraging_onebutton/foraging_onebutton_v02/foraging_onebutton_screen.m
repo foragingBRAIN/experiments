@@ -61,7 +61,7 @@ function W = foraging_onebutton_screen(platform)
         W.fps = fps;
     end
     W.ifi = 1/W.fps;
-    W.bg = 0.5;
+    W.bg = 1/3;%0.5;
     W.pixSize = pixSize;
     W.viewingDistCm = viewingDistCm;
     W.stereoMode = stereoMode;

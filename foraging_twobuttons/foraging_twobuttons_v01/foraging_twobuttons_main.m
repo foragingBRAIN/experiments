@@ -14,7 +14,7 @@ platform = 0;   % 0=mbp/mbp 1=mbp/samsung 2=SS1/sony
 
 switch platform
     case 0
-        cd('/Users/baptiste/Documents/MATLAB/foraging/foraging_twobuttons/foraging_twobuttons_v01/');
+        cd('/Users/baptiste/Documents/MATLAB/foraging/experiments/foraging_twobuttons/foraging_twobuttons_v01/');
     case 1
         cd('/Users/baptiste/Documents/MATLAB/multisensory/multisensory_looming/multisensory_looming_causality_v04/');
     case 2

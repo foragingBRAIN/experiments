@@ -22,9 +22,9 @@ function R = foraging_onebutton_header(W,E)
 
     
     R.scoreList = NaN(E.nCond,1);
-    R.lambdaVec = NaN(E.durTrial/W.ifi,E.nCond);
-    R.availVec = NaN(E.durTrial/W.ifi,E.nCond);
-    R.timeMat = NaN(E.durTrial/W.ifi+1,E.nCond);
+    R.lambdaVec = NaN(E.durTrial/E.durFrameSec,E.nCond);
+    R.availVec = NaN(E.durTrial/E.durFrameSec,E.nCond);
+    R.timeMat = NaN(E.durTrial/E.durFrameSec+1,E.nCond);
     
     
     R.header = sprintf('%s\t','block', 'reward', 'cost', 'score');

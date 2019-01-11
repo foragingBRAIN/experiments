@@ -14,7 +14,7 @@ platform = 0;   % 0=mbp/mbp 1=mbp/samsung 2=SS1/sony
 
 switch platform
     case 0
-        cd('/Users/baptiste/Documents/MATLAB/foraging/foraging_onebutton/foraging_onebutton_v02/');
+        cd('/Users/baptiste/Documents/MATLAB/foraging/experiments/foraging_onebutton/foraging_onebutton_v02/');
     case 1
         cd('/Users/baptiste/Documents/MATLAB/multisensory/multisensory_looming/multisensory_looming_causality_v04/');
     case 2
@@ -24,7 +24,7 @@ end
 
 W = foraging_onebutton_screen(platform);       % open PTB window
 
-L = foraging_onebutton_clut;                    % comoute CLUT
+L = foraging_onebutton_clutLuv;                    % comoute CLUT
 
 K = foraging_onebutton_keys(platform);         % set up keys
 

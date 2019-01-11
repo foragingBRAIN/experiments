@@ -15,15 +15,23 @@ function R = foraging_twobuttons_trial(W,L,A,K,E,R,bb)
         imwrite(I,'fixation.png');
     end
     
-    % textures spectrum
+    % texture spectrum
     beta = -2;
     spect_u = [(0:floor(E.stimWidthPix/2)) -(ceil(E.stimWidthPix/2)-1:-1:1)]'/E.stimWidthPix;
-    spect_u = repmat(spect_u,1,ceil(E.stimWidthPix));
+    spect_u = repmat(spect_u,1,E.stimWidthPix);
     spect_v = [(0:floor(E.stimWidthPix/2)) -(ceil(E.stimWidthPix/2)-1:-1:1)]/E.stimWidthPix;
-    spect_v = repmat(spect_v,ceil(E.stimWidthPix),1);
+    spect_v = repmat(spect_v,E.stimWidthPix,1);
     S_f = (spect_u.^2 + spect_v.^2).^(beta/2);
 	S_f(S_f==inf) = 0;
-            
+    
+    oldSpectrum = (randn(E.stimWidthPix) + 1i*randn(E.stimWidthPix)) .* sqrt(S_f);
+    
+    % time freq weighting
+    speedchange = 5;
+    k = sqrt(spect_u.^2 + spect_v.^2);
+    invk = exp(-k.*speedchange);
+    invk(isinf(invk)) = 0;
+    
     % window
     [x,y] = meshgrid(1:ceil(E.stimWidthPix),1:ceil(E.stimWidthPix));
     d = sqrt((x-0.5*(ceil(E.stimWidthPix)+1)).^2+(y-0.5*(ceil(E.stimWidthPix)+1)).^2);
@@ -45,16 +53,18 @@ function R = foraging_twobuttons_trial(W,L,A,K,E,R,bb)
     currClick = 0;
     wasClicked = 0;
     
-    lambdaVec = NaN(E.durTrial/W.ifi,2);
-    availVec = NaN(E.durTrial/W.ifi,2);
-    timeFrames = NaN(E.durTrial/W.ifi,1);
+    lambdaVec = NaN(E.durTrial/E.durFrameSec,2);
+    availVec = NaN(E.durTrial/E.durFrameSec,2);
+    timeFrames = NaN(E.durTrial/E.durFrameSec,1);
     
-    for frameNum=1:(E.durTrial/W.ifi)
+    stimPatch = NaN([E.stimWidthPix,E.stimWidthPix,3,2]);
+    
+    for frameNum=1:(E.durTrial/E.durFrameSec)
         
         % compute lambdas
         for ss=1:2
             if frameNum>1
-                lambdaVec(frameNum,ss) = lambdaVec(frameNum-1,ss)+E.stimDepl*(1-lambdaVec(frameNum-1,ss))*W.ifi;
+                lambdaVec(frameNum,ss) = lambdaVec(frameNum-1,ss)+E.stimRepl(E.replList(bb))*(1-lambdaVec(frameNum-1,ss))*E.durFrameSec;
             else
                 lambdaVec(frameNum,ss) = E.stimLambdaStart;
                 availVec(frameNum,:) = 0;
@@ -68,13 +78,13 @@ function R = foraging_twobuttons_trial(W,L,A,K,E,R,bb)
         for ss=1:2
             if frameNum>1
                 if ~availVec(frameNum-1,ss)
-                    if rand<(pup(ss)*W.ifi)
+                    if rand<(pup(ss)*E.durFrameSec)
                         availVec(frameNum,ss) = 1;
                     else
                         availVec(frameNum,ss) = 0;
                     end
                 elseif availVec(frameNum-1,ss)
-                    if rand<(pdown(ss)*W.ifi)
+                    if rand<(pdown(ss)*E.durFrameSec)
                         availVec(frameNum,ss) = 0;
                     else
                         availVec(frameNum,ss) = 1;
@@ -105,7 +115,7 @@ function R = foraging_twobuttons_trial(W,L,A,K,E,R,bb)
                             PsychPortAudio('FillBuffer', A.p, A.feedback1);
 
                             availVec(frameNum,ss) = 0;
-                            lambdaVec(frameNum,ss) = lambdaVec(frameNum-1,ss)*(1-E.stimDepl);
+                            lambdaVec(frameNum,ss) = lambdaVec(frameNum-1,ss)*(1-E.stimDepl(E.deplList(bb)));
                         else
                             currColor = 3;
                             currScore = currScore+E.stimCost(E.costList(bb));
@@ -125,19 +135,20 @@ function R = foraging_twobuttons_trial(W,L,A,K,E,R,bb)
             currColor = 1;
         end
         
-        % generate textures
-        currNoise = E.stimNoise*frameNum./(E.durTrial/W.ifi);
-        stimPatch = NaN([ceil(E.stimWidthPix),ceil(E.stimWidthPix),3,2]);
-        stimTex = cell(1,2);
+        
         for ss=1:2
-            phi = rand(ceil(E.stimWidthPix));
-            Xgray = ifftn(sqrt(S_f).*cos(2*pi*phi) + 1i.*sqrt(S_f).*sin(2*pi*phi));
-            Xgray = real(Xgray);
-            Xgray = -((1-lambdaVec(frameNum,ss))*E.stimRange + Xgray(:)*currNoise*E.stimRange./std(Xgray(:)));
-            Xgray = mod(round(Xgray*L.clutpoints),L.clutpoints);
-            Xgray(Xgray<=0) = L.clutpoints+Xgray(Xgray<=0);
+            % compute new spectrum
+            tempSpectrum = (randn(E.stimWidthPix) + 1i*randn(E.stimWidthPix)) .* sqrt(S_f);
+            newSpectrum = invk.*oldSpectrum + sqrt(1-invk.^2).*tempSpectrum;
+            Xgray = ifft2(newSpectrum);
+            oldSpectrum = newSpectrum;
+
+            % map colors
+            Xgray = angle(Xgray + E.stimConcentration.*exp(1i.*(-0.5*pi+0.5*lambdaVec(frameNum,ss)*pi)));
+            Xgray = 0.5.*Xgray./pi + (Xgray<=0);
+
             for cc=1:3
-                stimPatch(:,:,cc,ss) = reshape(L.Xrgb(cc,Xgray),ceil(E.stimWidthPix),ceil(E.stimWidthPix));
+                stimPatch(:,:,cc,ss) = reshape(L.Xrgb(cc,ceil(Xgray*L.clutpoints)),E.stimWidthPix,E.stimWidthPix);
             end
             stimTex{ss} = Screen('MakeTexture', W.n, stimPatch(:,:,:,ss));
         end
@@ -150,7 +161,7 @@ function R = foraging_twobuttons_trial(W,L,A,K,E,R,bb)
         end
         Screen('DrawDots', W.n, [targetx,cursorx;targety,cursory], [E.targetSizePix,E.cursorSizePix], [E.targetColor;E.cursorColor(currColor,:)]', [0,0], 2);
         Screen('DrawText', W.n, sprintf('%i',currScore), W.center(1)-0.5*scoreBounds(3), W.center(2)-200, 0);
-        vbl = Screen('Flip', W.n, timeStart+E.durFixSec+(frameNum-0.25)*W.ifi);
+        vbl = Screen('Flip', W.n, timeStart+E.durFixSec+(frameNum-0.25)*E.durFrameSec);
         timeFrames(frameNum) = vbl;
         
         for ss=1:2

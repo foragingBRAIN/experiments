@@ -6,7 +6,6 @@ function R = foraging_onebutton_trial(W,L,A,K,E,R,bb)
     currScore = 0;
     scoreBounds = Screen('TextBounds', W.n, sprintf('%i',currScore));
     
-
     
     Screen('FillRect', W.n, W.bg*255);
     Screen('DrawText', W.n, sprintf('%i',currScore), W.center(1)-0.5*scoreBounds(3), W.center(2)-200, 0);
@@ -19,15 +18,24 @@ function R = foraging_onebutton_trial(W,L,A,K,E,R,bb)
     end
     
     
-    % textures spectrum
+    % texture spectrum
     beta = -2;
     spect_u = [(0:floor(E.stimWidthPix/2)) -(ceil(E.stimWidthPix/2)-1:-1:1)]'/E.stimWidthPix;
-    spect_u = repmat(spect_u,1,ceil(E.stimWidthPix));
+    spect_u = repmat(spect_u,1,E.stimWidthPix);
     spect_v = [(0:floor(E.stimWidthPix/2)) -(ceil(E.stimWidthPix/2)-1:-1:1)]/E.stimWidthPix;
-    spect_v = repmat(spect_v,ceil(E.stimWidthPix),1);
+    spect_v = repmat(spect_v,E.stimWidthPix,1);
     S_f = (spect_u.^2 + spect_v.^2).^(beta/2);
 	S_f(S_f==inf) = 0;
-            
+    
+    oldSpectrum = (randn(E.stimWidthPix) + 1i*randn(E.stimWidthPix)) .* sqrt(S_f);
+    
+    % time freq weighting
+    speedchange = 20;
+    k = sqrt(spect_u.^2 + spect_v.^2);
+    invk = exp(-k.*speedchange);
+    invk(isinf(invk)) = 0;
+	
+    
     % window
     [x,y] = meshgrid(1:ceil(E.stimWidthPix),1:ceil(E.stimWidthPix));
     d = sqrt((x-0.5*(ceil(E.stimWidthPix)+1)).^2+(y-0.5*(ceil(E.stimWidthPix)+1)).^2);
@@ -47,15 +55,17 @@ function R = foraging_onebutton_trial(W,L,A,K,E,R,bb)
     currClick = 0;
     wasClicked = 0;
     
-    timeFrames = NaN(E.durTrial/W.ifi,1);
-    lambdaVec = NaN(E.durTrial/W.ifi,1);
-    availVec = NaN(E.durTrial/W.ifi,1);
+    timeFrames = NaN(E.durTrial/E.durFrameSec,1);
+    lambdaVec = NaN(E.durTrial/E.durFrameSec,1);
+    availVec = NaN(E.durTrial/E.durFrameSec,1);
     avail = 0;
     
-    for frameNum=1:(E.durTrial/W.ifi)
+    stimPatch = NaN([E.stimWidthPix,E.stimWidthPix,3]);
+    
+    for frameNum=1:(E.durTrial/E.durFrameSec)
         
         if frameNum>1
-        	lambdaVec(frameNum) = lambdaVec(frameNum-1)+E.stimRepl(E.replList(bb))*(1-lambdaVec(frameNum-1))*W.ifi;
+        	lambdaVec(frameNum) = lambdaVec(frameNum-1)+E.stimRepl(E.replList(bb))*(1-lambdaVec(frameNum-1))*E.durFrameSec;
         else
             lambdaVec(frameNum) = E.stimLambdaStart;
         end
@@ -94,39 +104,36 @@ function R = foraging_onebutton_trial(W,L,A,K,E,R,bb)
         pup = 1./E.stimTau;
         pdown = pup.*(1-lambdaVec(frameNum))./lambdaVec(frameNum);
         
-        if ~avail && rand<(pup*W.ifi)
+        if ~avail && rand<(pup*E.durFrameSec)
             avail = 1;
-        elseif avail && rand<(pdown*W.ifi)
+        elseif avail && rand<(pdown*E.durFrameSec)
             avail = 0;
         end
         availVec(frameNum) = avail;
         
         
-        % generate textures
-        currNoise = E.stimNoise*frameNum./(E.durTrial/W.ifi);
-        stimPatch = NaN([ceil(E.stimWidthPix),ceil(E.stimWidthPix),3]);
+        % compute new spectrum
+        tempSpectrum = (randn(E.stimWidthPix) + 1i*randn(E.stimWidthPix)) .* sqrt(S_f);
+        newSpectrum = invk.*oldSpectrum + sqrt(1-invk.^2).*tempSpectrum;
+        Xgray = ifft2(newSpectrum);
+        oldSpectrum = newSpectrum;
         
-        phi = rand(ceil(E.stimWidthPix));
-        Xgray = ifftn(sqrt(S_f).*cos(2*pi*phi) + 1i.*sqrt(S_f).*sin(2*pi*phi));
-        Xgray = real(Xgray);
-        Xgray = -((1-lambdaVec(frameNum))*E.stimRange + Xgray(:)*currNoise*E.stimRange./std(Xgray(:)));
-        Xgray = mod(round(Xgray*L.clutpoints),L.clutpoints);
-        Xgray(Xgray<=0) = L.clutpoints+Xgray(Xgray<=0);
+        % map colors
+        Xgray = angle(Xgray + E.stimConcentration.*exp(1i.*(-0.5*pi+0.5*lambdaVec(frameNum)*pi)));
+        Xgray = 0.5.*Xgray./pi + (Xgray<=0);
+        
         for cc=1:3
-            stimPatch(:,:,cc) = reshape(L.Xrgb(cc,Xgray),ceil(E.stimWidthPix),ceil(E.stimWidthPix));
+            stimPatch(:,:,cc) = reshape(L.Xrgb(cc,ceil(Xgray*L.clutpoints)),E.stimWidthPix,E.stimWidthPix);
         end
-        stimTex = Screen('MakeTexture', W.n, stimPatch(:,:,:));
-
+        stimTex = Screen('MakeTexture', W.n, stimPatch);
         
-%         currStimColor = [lambdaVec(frameNum)*255,0,(1-lambdaVec(frameNum))*255];
-        
-            
+        % display stim
         Screen('FillRect', W.n, W.bg*255);
         Screen('DrawTexture', W.n, stimTex, [], patchRect);
         Screen('DrawTexture', W.n, winTex, [], patchRect);
         Screen('DrawDots', W.n, [cursorx;cursory], E.cursorSizePix, E.cursorColor(currColor,:), [0,0], 2);
         Screen('DrawText', W.n, sprintf('%i',currScore), W.center(1)-0.5*scoreBounds(3), W.center(2)-200, 0);
-        vbl = Screen('Flip', W.n, timeStart+E.durFixSec+(frameNum-0.25)*W.ifi);
+        vbl = Screen('Flip', W.n, timeStart+E.durFixSec+(frameNum-0.25)*E.durFrameSec);
         
         timeFrames(frameNum) = vbl;
         

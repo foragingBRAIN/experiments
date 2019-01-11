@@ -14,14 +14,14 @@ function E = foraging_twobuttons_setup(W)
     stimNumber = 20;
     stimLambdaStart = 0.5;
     stimTau = 0.5;
-    stimRepl = 0.1;
-    stimDepl = 0.2;
+    stimRepl = [0.1,0.2,0.4];
+    stimDepl = [0.8,0.5,0.2];
     stimReward = +2;
     stimCost = -1;%[0,-1,-2,-4];
     stimWidthDeg = 4;
     stimDistDeg = 4;
     stimRange = 0.25;
-    stimNoise = 1;
+    stimConcentration = exp(-2);
     
     targetSizeDeg = 0.2;
     targetColor = [0,0,0];
@@ -31,6 +31,7 @@ function E = foraging_twobuttons_setup(W)
     cursorSpeedDegSec = 4;
     
     durFixSec = 0.5;
+    durFrameSec = 0.05;
     durTrial = 30;
     durItiSec = 0.5;
     durPauseSec = 5;
@@ -52,7 +53,6 @@ function E = foraging_twobuttons_setup(W)
     cursorSizeRad = cursorSizeDeg*pi/180;
 	cursorSpeedRadSec = cursorSpeedDegSec*pi/180;
     targetSizeRad = targetSizeDeg*pi/180;
-   
     
     fixationSizeCm = W.viewingDistCm*tan(fixationSizeRad);
     fixationThicknessCm = W.viewingDistCm*tan(fixationThicknessRad);
@@ -66,23 +66,25 @@ function E = foraging_twobuttons_setup(W)
     fixationSizePix = fixationSizeCm/W.pixSize;
     fixationThicknessPix = fixationThicknessCm/W.pixSize;
     fixationTextDistPix = fixationTextDistCm/W.pixSize;
-    stimWidthPix = stimWidthCm/W.pixSize;
+    stimWidthPix = round(stimWidthCm/W.pixSize);
     stimDistPix = stimDistCm/W.pixSize;
     cursorSizePix = cursorSizeCm/W.pixSize;
     cursorSpeedPixSec = cursorSpeedCmSec/W.pixSize;
     targetSizePix = targetSizeCm/W.pixSize;
     
-    cursorSpeedPixFrames = cursorSpeedPixSec/W.fps;
+    cursorSpeedPixFrames = cursorSpeedPixSec*durFrameSec;
     
     
     %% set up design
     
-    nCond = length(stimRepl)*length(stimCost);
+    nCond = length(stimRepl)*length(stimDepl)*length(stimCost);
     nTrials = nCond*stimNumber;
     
-    [costList,rateList] = meshgrid(1:length(stimCost),1:length(stimRepl));
-    costList = costList(randperm(nCond))';
-    rateList = rateList(randperm(nCond))';
+    [replList,deplList,costList] = meshgrid(1:length(stimRepl),1:length(stimDepl),1:length(stimCost));
+    randVec = randperm(nCond);
+    costList = costList(randVec)';
+    replList = replList(randVec)';
+    deplList = deplList(randVec)';
     
     
     %% generate structure
@@ -119,7 +121,7 @@ function E = foraging_twobuttons_setup(W)
         'stimWidthPix',                 stimWidthPix , ...
         'stimDistPix',                  stimDistPix , ...
         'stimRange',                    stimRange , ...
-        'stimNoise',                    stimNoise , ...
+        'stimConcentration',            stimConcentration , ...
         'cursorColor',                  cursorColor , ...
         'cursorSizeDeg',              	cursorSizeDeg , ...
         'cursorSizeRad',              	cursorSizeRad , ...
@@ -136,11 +138,13 @@ function E = foraging_twobuttons_setup(W)
         'targetSizeCm',               	targetSizeCm , ...
         'targetSizePix',              	targetSizePix , ...
         'durFixSec',                    durFixSec , ...
+        'durFrameSec',                  durFrameSec , ...
         'durTrial',                     durTrial , ...
         'durItiSec',                    durItiSec , ...
         'durPauseSec',                  durPauseSec , ...
         'costList',                     costList , ...
-    	'rateList',                     rateList , ...
+        'replList',                     replList , ...
+        'deplList',                     deplList , ...
         'textSize',                     textSize , ...
         'textStyle',                    textStyle , ...
         'textFont',                     textFont , ...
