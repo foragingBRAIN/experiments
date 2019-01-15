@@ -18,20 +18,13 @@ function W = foraging_twobuttons_screen(platform)
             fps = 60;
             Screen('Preference', 'SkipSyncTests', 1);
         case 1
-            monitor = 1;
+            monitor = 0;
             pixSize = 27.2/1000;
             viewingDistCm = 100;
             stereoMode = 0;
             multiSamples = 8;
             fps = 60;
             Screen('Preference', 'SkipSyncTests', 1);
-        case 2
-            monitor = 0;
-            pixSize = 24.6/800;
-            viewingDistCm = 57.3;
-            stereoMode = 0;
-            multiSamples = 8;
-            fps = NaN;
     end
     
     try
