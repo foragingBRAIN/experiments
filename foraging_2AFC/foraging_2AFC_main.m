@@ -1,22 +1,24 @@
 
 %% foraging_2AFC
 %
-% 2AFC task with foraging stimulus
+% 2AFC task with foraging stimulus. Tests multiple display times for
+% 1: static stimuli, 2: stimuli with 1/f temporal structure and 3: stimuli
+% with 0 correlation in time
 %
-% Baptiste Caziot, December 2017
+% Baptiste Caziot, January 2019
 
 
 clear all;
 close all;
 
 
-platform = 0;   % 0=mbp/mbp 1=mbp/samsung 2=SS1/sony
+platform = 1;   % 0=mbp/mbp 1=T517D/samsung 2=SS1/sony
 
 switch platform
     case 0
         cd('/Users/baptiste/Documents/MATLAB/foraging/experiments/foraging_2AFC/');
     case 1
-        cd('/Users/baptiste/Documents/MATLAB/multisensory/multisensory_looming/multisensory_looming_causality_v04/');
+        cd('C:/Users/baptiste/Documents/MATLAB/foraging/experiments/foraging_2AFC/');
     case 2
         cd('/Users/baptistecaziot/Documents/MATLAB/multisensory_looming_causality_v04/');
 end
@@ -42,22 +44,22 @@ clc;
 if strcmp(R.subjectName,'robot')
     
 elseif strcmp(R.subjectName,'train1')
-    E.condList(:) = 3;
-    E.deadlineList(:) = +Inf;
+    E.condList(:) = 1;
+    E.durList(:) = max(E.durStimSec);
 elseif strcmp(R.subjectName,'train2')
-    E.deadlineList(:) = +Inf;
+    E.condList(:) = 2;
+    E.durList(:) = max(E.durStimSec);
+    E.concentrationList(:) = max(E.stimConcentration);
 elseif strcmp(R.subjectName,'train3')
     E.condList(:) = 3;
-    E.deadlineList(:) = 0.3;
-elseif strcmp(R.subjectName,'train4')
-    E.deadlineList(:) = 0.3;
+    E.durList(:) = max(E.durStimSec);
 elseif strcmp(R.subjectName,'screenshots')
     E.concentrationList(:) = max(E.stimConcentration);
 end
 
 
+rand(1,'gpuArray');
 R.timeStart = GetSecs;
-
 
 for tt=1:E.nTrials
     
@@ -72,7 +74,7 @@ for tt=1:E.nTrials
         R = foraging_2AFC_trial(W,L,A,K,E,R,tt);
     else
         R.responseList(tt) = 0.5*sign(normcdf(E.meanList(tt),0.5,0.005./E.concentrationList(tt))-rand)+0.5;
-        R.rtList(tt) = 0;c
+        R.rtList(tt) = 0;
     end
     
     textLine = foraging_2AFC_write(E,R,tt);

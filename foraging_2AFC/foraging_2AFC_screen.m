@@ -14,7 +14,7 @@ function W = foraging_2AFC_screen(platform)
             fps = 60;
             Screen('Preference', 'SkipSyncTests', 1);
         case 1
-            monitor = 1;
+            monitor = 0;
             pixSize = 27.2/1000;
             viewingDistCm = 100;
             stereoMode = 0;

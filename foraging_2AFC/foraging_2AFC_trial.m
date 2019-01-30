@@ -18,30 +18,48 @@ function R = foraging_2AFC_trial(W,L,A,K,E,R,tt)
     
     
     %% compute texture
+    stimSize = round(E.stimWidthPix*E.stimScale);
     
     % texture spectrum
     beta = -2;
-    spect_u = [(0:floor(E.stimWidthPix/2)) -(ceil(E.stimWidthPix/2)-1:-1:1)]'/E.stimWidthPix;
-    spect_u = repmat(spect_u,1,E.stimWidthPix);
-    spect_v = [(0:floor(E.stimWidthPix/2)) -(ceil(E.stimWidthPix/2)-1:-1:1)]/E.stimWidthPix;
-    spect_v = repmat(spect_v,E.stimWidthPix,1);
+    spect_u = [(0:floor(stimSize/2)) -(ceil(stimSize/2)-1:-1:1)]'/stimSize;
+    spect_u = gpuArray(repmat(spect_u,1,stimSize));
+    spect_v = [(0:floor(stimSize/2)) -(ceil(stimSize/2)-1:-1:1)]/stimSize;
+    spect_v = gpuArray(repmat(spect_v,stimSize,1));
     S_f = (spect_u.^2 + spect_v.^2).^(beta/2);
 	S_f(S_f==inf) = 0;
-            
-    % iFFT
-    phi = rand(E.stimWidthPix);
-    Xgray = ifft2(sqrt(S_f).*cos(2*pi*phi) + 1i.*sqrt(S_f).*sin(2*pi*phi));
-%     Xgray = Xgray + (-0.5*pi+0.5*E.meanList(tt)*pi).*exp(1i.*E.concentrationList(tt));
-    Xgray = Xgray + E.concentrationList(tt).*exp(1i.*(-0.5*pi+0.5*E.meanList(tt)*pi));
-    Xgray = angle(Xgray);
+ 	
+    %% Temporal weighting
+    k = sqrt(spect_u.^2 + spect_v.^2);
+    invk = exp(-k.*E.stimSpeedChange);
+    invk(isinf(invk)) = 0;
     
-    % color mapping
-    Xgray = 0.5.*Xgray./pi + (Xgray<=0);
-    stimPatch = NaN([E.stimWidthPix,E.stimWidthPix,3]);
-    for cc=1:3
-        stimPatch(:,:,cc) = reshape(L.Xrgb(cc,ceil(Xgray*L.clutpoints)),E.stimWidthPix,E.stimWidthPix);
+    % iFFT
+    oldSpectrum = (randn(stimSize,'gpuArray') + 1i*randn(stimSize,'gpuArray')) .* sqrt(S_f);
+    
+    stimPatch = NaN([stimSize,stimSize,3]);
+    stimTex = cell(1,E.durList(tt)*W.fps);
+    for ff=1:E.durList(tt)*W.fps
+        if E.condList(tt)>1
+        	newSpectrum = (randn(stimSize,'gpuArray') + 1i*randn(stimSize,'gpuArray')) .* sqrt(S_f);
+            if E.condList(tt)==2
+                oldSpectrum = invk.*oldSpectrum + sqrt(1-invk.^2).*newSpectrum;
+            elseif E.condList(tt)==3
+                if rem(ff,E.stimFrames)==0
+                    oldSpectrum = newSpectrum;
+                end
+            end
+        end
+        
+        Xmat = ifft2(oldSpectrum);
+        Xmat = angle(Xmat + E.concentrationList(tt).*exp(1i.*(-0.5*pi+0.5*E.meanList(tt)*pi)));
+        Xmat = gather(0.5.*Xmat./pi + (Xmat<=0));
+        
+        for cc=1:3
+            stimPatch(:,:,cc) = reshape(L.Xrgb(cc,ceil(Xmat*L.clutpoints)),stimSize,stimSize);
+        end
+        stimTex{ff} = Screen('MakeTexture', W.n, stimPatch);
     end
-    stimTex = Screen('MakeTexture', W.n, stimPatch);
     
     % window
     [x,y] = meshgrid(1:ceil(E.stimWidthPix),1:ceil(E.stimWidthPix));
@@ -65,19 +83,25 @@ function R = foraging_2AFC_trial(W,L,A,K,E,R,tt)
     
     
     %% display stim
-    Screen('DrawTexture', W.n, stimTex, [], patchRect);
-    Screen('DrawTexture', W.n, winTex, [], patchRect);
-    vbl = Screen('Flip', W.n, timeBlankFix+E.durGapSec-0.25*W.ifi);
-    timeStim = vbl;
-    if strcmp(R.subjectName,'screenshots')
-        I = Screen('GetImage', W.n);
-        imwrite(I,'stim.png');
+    Screen('Fillrect', W.n, W.bg*255);
+    vbl = Screen('Flip', W.n, timeBlankFix+E.durGapSec-1.25*W.ifi);
+    
+    frameTimes = NaN(E.durList(tt)*W.fps,1);
+    for ff=1:E.durList(tt)*W.fps
+        Screen('DrawTexture', W.n, stimTex{ff}, [], patchRect);
+        Screen('DrawTexture', W.n, winTex, [], patchRect);
+        vbl = Screen('Flip', W.n, vbl+0.75*W.ifi);
+        frameTimes(ff) = vbl;
+        if strcmp(R.subjectName,'screenshots')
+            I = Screen('GetImage', W.n);
+            imwrite(I,sprintf('stim%i.png',ff));
+        end
     end
     
     
     %% blank stim
     Screen('Fillrect', W.n, W.bg*255);
-    vbl = Screen('Flip', W.n, timeStim+E.durStimSec-0.25*W.ifi);
+    vbl = Screen('Flip', W.n, frameTimes(1)+E.durList(tt)-0.25*W.ifi);
     timeBlankStim = vbl;
     if strcmp(R.subjectName,'screenshots')
         I = Screen('GetImage', W.n);
@@ -89,7 +113,9 @@ function R = foraging_2AFC_trial(W,L,A,K,E,R,tt)
     while 1
         
         Screen('FillRect', W.n, W.bg*255);
-        Screen('FrameRect', W.n,  E.fixationColor*255, fixRect, E.fixationThicknessPix);
+        if (GetSecs-timeBlankStim)>E.durGapSec
+            Screen('FrameRect', W.n,  E.fixationColor*255, fixRect, E.fixationThicknessPix);
+        end
         Screen('Flip', W.n);
         
         [keyIsDown, timeResp, keyCode] = KbCheck;
@@ -112,11 +138,10 @@ function R = foraging_2AFC_trial(W,L,A,K,E,R,tt)
         end 
     end
     
-	
     
-    
-    R.rtList(tt) = timeResp-timeStim;
-%     R.timeMat(tt,:) = [timeStart,timeBlank1,sndStartTime1,timeStim1,timeBlank2,sndStartTime2,timeStim2,timeBlank3,timeResp,timeResponseScreen];
+    R.rtList(tt) = timeResp-frameTimes(1);
+    R.timeMat(tt,:) = [timeStart,timeBlankFix,frameTimes(1),timeBlankStim,timeResp];
+    R.frameTimes{tt} = frameTimes;
     
     R.correctList(tt) = (R.responseList(tt)==(E.meanList(tt)>0.5));
     
@@ -128,7 +153,9 @@ function R = foraging_2AFC_trial(W,L,A,K,E,R,tt)
     end
     PsychPortAudio('Start', A.p, 1, 0);
 
-    Screen('Close', stimTex);
+    for ff=1:E.durList(tt)*W.fps
+        Screen('Close', stimTex{ff});
+    end
     Screen('Close', winTex);
     
     while KbCheck; end

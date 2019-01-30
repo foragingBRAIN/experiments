@@ -23,9 +23,10 @@ function R = foraging_2AFC_header(E,platform)
     
     R.responseList =  NaN(E.nTrials,1);
     R.rtList = NaN(E.nTrials,1);
-    R.timeMat = NaN(E.nTrials,10);
+    R.timeMat = NaN(E.nTrials,5);
+    R.frameTimes = cell(E.nTrials,1);
     R.correctList = NaN(E.nTrials,1);
     
-    R.header = sprintf('%s\t','trial', 'cond', 'resp', 'rt');
+    R.header = sprintf('%s\t','trial', 'cond', 'dur', 'mean', 'conc', 'resp', 'rt');
     
 end

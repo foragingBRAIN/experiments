@@ -41,8 +41,9 @@ function foraging_2AFC_messages(W,E,tt)
         
         
         % display trial number
-        txt1 = '--';
-        txt2 = sprintf('Block %i/%i', E.blockList(tt), E.nBlocks);
+        condName = {'static','1/f','independent'};
+        txt1 = sprintf('Block %i/%i', E.blockList(tt), E.nBlocks);
+        txt2 = sprintf('%s - %ims', condName{E.condList(tt)}, 1000*E.durList(tt));
         bnd1 = Screen('TextBounds', W.n, txt1);
         bnd2 = Screen('TextBounds', W.n, txt2);
         

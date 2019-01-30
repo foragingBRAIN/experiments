@@ -6,22 +6,25 @@ function E = foraging_2AFC_setup(W)
     
     %% set parameters
     
-    nTrialsByCond = 20;
-    nBlocks = 10;
+    nTrialsByCond = 10;
+    nBlocksByCond = 2;
     
     fixationColor = [ 0,0,0 ];
     fixationSizeDeg = 0.4;
     fixationThicknessDeg = 0.1;
     fixationTextDistDeg = 8;
     
-    stimWidthDeg = 20;
-    stimMean = linspace(0,1,6);
-    stimConcentration = exp(-7:-3);
+    stimWidthDeg = 10;
+    stimMean = linspace(0,1,5);
+    stimConcentration = exp([-7,-4]);
+    stimSpeedChange = 10;
+    stimScale = 1/2;
+    stimFrames = 3;
     
     durFixSec = 0.5;
-    durGapSec = 0.05;
-    durStimSec = 0.1;
-    durItiSec = 0.5;
+    durGapSec = 0.2;
+    durStimSec = [0.1,0.2,0.4,0.8];
+    durItiSec = 0.0;
     durPauseSec = 5;
     
     textSize = 32;
@@ -51,18 +54,36 @@ function E = foraging_2AFC_setup(W)
     
     %% set up design
     
-    nCond = length(stimMean)*length(stimConcentration);
+    nCond = 3*length(durStimSec)*length(stimMean)*length(stimConcentration);
     nTrials = nTrialsByCond*nCond;
+    nBlocks = nBlocksByCond*3*length(durStimSec);
     
-    blockList = reshape(repmat(1:nBlocks,nTrials/nBlocks,1),nTrials,1);
+    blockList = repmat(1:3*length(durStimSec)*nBlocksByCond,nTrials/(3*length(durStimSec)*nBlocksByCond),1);
+    blockList = blockList(:);
     
-    [meanList,concentrationList] = meshgrid(stimMean,stimConcentration,1:nTrialsByCond);
-    meanList = meanList(:);
-    concentrationList = concentrationList(:);
+    [blockCond,blockDur] = meshgrid(1:3,durStimSec,1:nBlocksByCond);
+    randBlock = randperm(3*length(durStimSec)*nBlocksByCond);
     
-    randVec = randperm(nTrials);
-    meanList = meanList(randVec);
-	concentrationList = concentrationList(randVec);
+    blockCond = blockCond(randBlock);
+    blockDur = blockDur(randBlock);
+    
+    condList = repmat(blockCond,nTrials/(3*length(durStimSec)*nBlocksByCond),1);
+    condList = condList(:);
+    
+    durList = repmat(blockDur,nTrials/(3*length(durStimSec)*nBlocksByCond),1);
+    durList = durList(:);
+    
+    randVec = NaN(nTrials/(3*length(durStimSec)),(3*length(durStimSec)));
+    meanList = NaN(nTrials,1);
+	concentrationList = NaN(nTrials,1);
+    for cc=1:3
+        for dd=1:length(durStimSec)
+            [meanTmp,concentrationTmp] = meshgrid(stimMean,stimConcentration,1:nTrialsByCond);
+            randVec(:,(cc-1)*length(durStimSec)+dd) = randperm(nTrials/(3*length(durStimSec)));
+            meanList((condList==cc)&(durList==durStimSec(dd))) = meanTmp(randVec(:,cc));
+            concentrationList((condList==cc)&(durList==durStimSec(dd))) = concentrationTmp(randVec(:,cc));
+        end
+    end
     
     
     %% generate structure
@@ -70,6 +91,7 @@ function E = foraging_2AFC_setup(W)
     E = struct(...
         'nTrials',                      nTrials , ...
         'nBlocks',                      nBlocks , ...
+        'nBlocksByCond',              	nBlocksByCond , ...
         'nTrialsByCond',                nTrialsByCond , ...
         'fixationColor',                fixationColor , ...
         'fixationSizeDeg',              fixationSizeDeg , ...
@@ -90,6 +112,9 @@ function E = foraging_2AFC_setup(W)
         'stimWidthPix',                 stimWidthPix , ...
         'stimMean',                     stimMean , ...
         'stimConcentration',            stimConcentration , ...
+        'stimSpeedChange',              stimSpeedChange , ...
+        'stimScale',                    stimScale , ...
+        'stimFrames',                   stimFrames , ...
         'durFixSec',                    durFixSec , ...
         'durGapSec',                    durGapSec , ...
         'durStimSec',                   durStimSec , ...
@@ -97,6 +122,8 @@ function E = foraging_2AFC_setup(W)
         'durPauseSec',                  durPauseSec , ...
         'blockList',                    blockList , ...
         'randVec',                      randVec , ...
+        'condList',                     condList , ...
+        'durList',                      durList , ...
         'meanList',                     meanList , ...
         'concentrationList',            concentrationList , ...
         'textSize',                     textSize , ...
