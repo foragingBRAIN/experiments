@@ -6,6 +6,8 @@ function E = foraging_2AFC_setup(W)
     
     %% set parameters
     
+    useGpu = 0;
+    
     nTrialsByCond = 10;
     nBlocksByCond = 2;
     
@@ -19,7 +21,7 @@ function E = foraging_2AFC_setup(W)
     stimConcentration = exp([-7,-4]);
     stimSpeedChange = 10;
     stimScale = 1/2;
-    stimFrames = 3;
+    stimFrames = 12;
     
     durFixSec = 0.5;
     durGapSec = 0.2;
@@ -89,6 +91,7 @@ function E = foraging_2AFC_setup(W)
     %% generate structure
     
     E = struct(...
+        'useGpu',                       useGpu , ...
         'nTrials',                      nTrials , ...
         'nBlocks',                      nBlocks , ...
         'nBlocksByCond',              	nBlocksByCond , ...

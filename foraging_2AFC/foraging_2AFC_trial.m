@@ -23,9 +23,18 @@ function R = foraging_2AFC_trial(W,L,A,K,E,R,tt)
     % texture spectrum
     beta = -2;
     spect_u = [(0:floor(stimSize/2)) -(ceil(stimSize/2)-1:-1:1)]'/stimSize;
-    spect_u = gpuArray(repmat(spect_u,1,stimSize));
+    if E.useGpu
+        spect_u = gpuArray(repmat(spect_u,1,stimSize));
+    else
+        spect_u = repmat(spect_u,1,stimSize);
+    end
     spect_v = [(0:floor(stimSize/2)) -(ceil(stimSize/2)-1:-1:1)]/stimSize;
-    spect_v = gpuArray(repmat(spect_v,stimSize,1));
+    if E.useGpu
+        spect_v = gpuArray(repmat(spect_v,stimSize,1));
+    else
+        spect_v = repmat(spect_v,stimSize,1);
+    end
+    
     S_f = (spect_u.^2 + spect_v.^2).^(beta/2);
 	S_f(S_f==inf) = 0;
  	
@@ -35,13 +44,21 @@ function R = foraging_2AFC_trial(W,L,A,K,E,R,tt)
     invk(isinf(invk)) = 0;
     
     % iFFT
-    oldSpectrum = (randn(stimSize,'gpuArray') + 1i*randn(stimSize,'gpuArray')) .* sqrt(S_f);
+    if E.useGpu
+        oldSpectrum = (randn(stimSize,'gpuArray') + 1i*randn(stimSize,'gpuArray')) .* sqrt(S_f);
+    else
+        oldSpectrum = (randn(stimSize) + 1i*randn(stimSize)) .* sqrt(S_f);
+    end
     
     stimPatch = NaN([stimSize,stimSize,3]);
     stimTex = cell(1,E.durList(tt)*W.fps);
     for ff=1:E.durList(tt)*W.fps
         if E.condList(tt)>1
-        	newSpectrum = (randn(stimSize,'gpuArray') + 1i*randn(stimSize,'gpuArray')) .* sqrt(S_f);
+            if E.useGpu
+                newSpectrum = (randn(stimSize,'gpuArray') + 1i*randn(stimSize,'gpuArray')) .* sqrt(S_f);
+            else
+                newSpectrum = (randn(stimSize) + 1i*randn(stimSize)) .* sqrt(S_f);
+            end
             if E.condList(tt)==2
                 oldSpectrum = invk.*oldSpectrum + sqrt(1-invk.^2).*newSpectrum;
             elseif E.condList(tt)==3
@@ -53,7 +70,10 @@ function R = foraging_2AFC_trial(W,L,A,K,E,R,tt)
         
         Xmat = ifft2(oldSpectrum);
         Xmat = angle(Xmat + E.concentrationList(tt).*exp(1i.*(-0.5*pi+0.5*E.meanList(tt)*pi)));
-        Xmat = gather(0.5.*Xmat./pi + (Xmat<=0));
+        Xmat = 0.5.*Xmat./pi + (Xmat<=0);
+        if E.useGpu
+            Xmat = gather(Xmat);
+        end
         
         for cc=1:3
             stimPatch(:,:,cc) = reshape(L.Xrgb(cc,ceil(Xmat*L.clutpoints)),stimSize,stimSize);

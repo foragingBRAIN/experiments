@@ -12,7 +12,7 @@ clear all;
 close all;
 
 
-platform = 1;   % 0=mbp/mbp 1=T517D/samsung 2=SS1/sony
+platform = 2;   % 0=mbp/mbp 1=T517D/samsung 2=SS1/sony
 
 switch platform
     case 0
@@ -20,7 +20,7 @@ switch platform
     case 1
         cd('C:/Users/baptiste/Documents/MATLAB/foraging/experiments/foraging_2AFC/');
     case 2
-        cd('/Users/baptistecaziot/Documents/MATLAB/multisensory_looming_causality_v04/');
+        cd('/home/lab/Documents/MATLAB/foraging/experiments/foraging_2AFC/');
 end
 
 

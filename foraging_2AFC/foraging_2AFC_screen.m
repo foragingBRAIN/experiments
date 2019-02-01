@@ -23,18 +23,19 @@ function W = foraging_2AFC_screen(platform)
             Screen('Preference', 'SkipSyncTests', 1);
         case 2
             monitor = 0;
-            pixSize = 24.6/800;
+            pixSize = 22.5/1000;
             viewingDistCm = 57.3;
             stereoMode = 0;
             multiSamples = 8;
             fps = NaN;
+            calibFile = 'T517D_iiyama2_lin.mat';
     end
     
     try
-        load('foraging_2AFC_calibration.mat')
+        load(calibFile,'CLUT')
         W.CLUT = CLUT;
-        W.dkl2rgb = dkl2rgb;
-        W.ldrgyv2rgb = ldrgyv2rgb;
+%         W.dkl2rgb = dkl2rgb;
+%         W.ldrgyv2rgb = ldrgyv2rgb;
     catch
         error('No calibration file found')
     end
